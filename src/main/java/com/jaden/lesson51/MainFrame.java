@@ -9,10 +9,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.text.DefaultEditorKit;
@@ -20,13 +18,11 @@ import org.apache.commons.net.ftp.*;
 
 public class MainFrame extends javax.swing.JFrame {
 
-    String dirName = "";
     FTPClient ftp = new FTPClient();
     int dividerLocation;
     DestTableModel desttablemodel = new DestTableModel();
     SrcTableModel srctablemodel = new SrcTableModel();
     FilesTableModel filestablemodel = new FilesTableModel();
-    Stack<FTPFile> stack = new Stack();
 
     public MainFrame() {
         initComponents();
@@ -869,33 +865,52 @@ public class MainFrame extends javax.swing.JFrame {
                 int row = destTable.rowAtPoint(evt.getPoint());
 
                 FTPFile file = desttablemodel.files.get(row);
-                System.out.println(">>>" + file.getName());
                 if ("..".equals(file.getName())) {
-
-                    stack.pop();
-                } else if (file.isDirectory()) {
-
-                    stack.push(file);
-                    //String dirName = file.getName();.
-
+                    try {
+                        ftp.changeToParentDirectory();
+                        FTPFile[] dirFiles = ftp.listFiles();
+                        desttablemodel.files = withParentEntry(dirFiles);
+                        desttablemodel.fireTableStructureChanged();
+                    } catch (IOException ex) {
+                        JOptionPane.showMessageDialog(MainFrame.this, "Failed to go up: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                    return;
+                }
+                if (file.isDirectory()) {
+                    try {
+                        String dirName = file.getName();
+                        ftp.changeWorkingDirectory(dirName);
+                        FTPFile[] dirFiles = ftp.listFiles();
+                        desttablemodel.files = withParentEntry(dirFiles);
+                        desttablemodel.fireTableStructureChanged();
+                        javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
+                        fileChooser.setSelectedFile(new java.io.File(file.getName()));
+                        int userSelection = fileChooser.showSaveDialog(this);
+                        if (userSelection == javax.swing.JFileChooser.APPROVE_OPTION) {
+                            java.io.File saveFile = fileChooser.getSelectedFile();
+                            try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(saveFile))) {
+                                boolean success = ftp.retrieveFile(file.getName(), outputStream);
+//                                if (success) {
+//                                    JOptionPane.showMessageDialog(this, "Downloaded: " + file.getName() + " to " + saveFile.getAbsolutePath());
+//                                } else {
+//                                    JOptionPane.showMessageDialog(this, "Failed to download: " + file.getName(), "Error", JOptionPane.ERROR_MESSAGE);
+//                                }
+//                            } catch (IOException ex) {
+//                                JOptionPane.showMessageDialog(this, "Download error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                    } catch (IOException ex) {
+                        JOptionPane.showMessageDialog(MainFrame.this, "Failed to enter directory: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    }
                 } else {
                     JOptionPane.showMessageDialog(MainFrame.this, "Selected file: " + file.getName() + " but it is not directory");
                 }
-                dirName = "";
-                for (FTPFile temp : stack.toArray(new FTPFile[0])) {
-
-                    dirName += "/" + temp.getName();
-                }
-                System.out.println("d=" + dirName);
-
-                ftp.changeWorkingDirectory(dirName);
-                FTPFile[] dirFiles = ftp.listFiles();
-                desttablemodel.files = withParentEntry(dirFiles);
-                desttablemodel.fireTableStructureChanged();
             } catch (IOException ex) {
                 Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+            
+        
     }//GEN-LAST:event_destTableMouseClicked
 
     /**
