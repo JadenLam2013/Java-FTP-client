@@ -341,6 +341,11 @@ public class MainFrame extends javax.swing.JFrame {
                 "Title 1", "Title 2", "Title 3", "Title 4"
             }
         ));
+        srcTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                srcTableMouseClicked(evt);
+            }
+        });
         jScrollPane2.setViewportView(srcTable);
 
         jSplitPane5.setLeftComponent(jScrollPane2);
@@ -909,9 +914,41 @@ public class MainFrame extends javax.swing.JFrame {
                 Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-            
-        
+
+
     }//GEN-LAST:event_destTableMouseClicked
+
+    private void srcTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_srcTableMouseClicked
+        if (evt.getClickCount() == 2) {
+            int row = srcTable.rowAtPoint(evt.getPoint());
+            File file = srctablemodel.files.get(row);
+            if (file.isDirectory()) {
+                localpathTextField.setText(file.getAbsolutePath());
+                File[] files = file.listFiles();
+                if (files != null) {
+                    srctablemodel.files = Arrays.asList(files);
+                } else {
+                    srctablemodel.files = Arrays.asList();
+                }
+                srctablemodel.fireTableStructureChanged();
+            }
+            // Optionally, handle ".." for going up one directory
+            else if ("..".equals(file.getName())) {
+                File path = new File(localpathTextField.getText());
+                File parent = path.getParentFile();
+                if (parent != null && parent.exists() && parent.isDirectory()) {
+                    localpathTextField.setText(parent.getAbsolutePath());
+                    File[] files = parent.listFiles();
+                    if (files != null) {
+                        srctablemodel.files = Arrays.asList(files);
+                    } else {
+                        srctablemodel.files = Arrays.asList();
+                    }
+                    srctablemodel.fireTableStructureChanged();
+                }
+            }
+        }
+    }//GEN-LAST:event_srcTableMouseClicked
 
     /**
      * @param args the command line arguments
